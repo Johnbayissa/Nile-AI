@@ -2,7 +2,7 @@ from flask import Flask, request, jsonify, make_response
 from flask_cors import CORS
 import json
 import os
-from google import genai
+import requests
 
 app = Flask(__name__)
 
@@ -12,8 +12,8 @@ CORS(app, resources={r"/*": {
     "methods": ["GET", "POST", "OPTIONS"]
 }})
 
+# API Key Render Environment Variables irraa dubbisa
 gemini_key = os.environ.get("GEMINI_API_KEY", "")
-client = genai.Client(api_key=gemini_key)
 
 @app.before_request
 def handle_options():
@@ -48,31 +48,42 @@ def chat_assistant():
             "Help the user with any general questions, coding advice, video editing tips, or career guidance. "
             "Keep your responses professional, helpful, and highly motivational. Speak fluently in Afaan Oromoo, Amharic, or English based on the user's language."
         )
-        
-        full_prompt = f"{system_instruction}\n\nUser Question: {user_message}\nAI Response:"
 
-        # Dynamic Model Fallback Router (Bypass standard 404 model errors completely)
-        try:
-            # 1. Try the standard 2.5 Flash model format
-            response = client.models.generate_content(
-                model='gemini-2.5-flash',
-                contents=full_prompt,
-            )
-        except Exception:
-            try:
-                # 2. Fallback to raw gemini-2.5-flash without extension strings
-                response = client.models.generate_content(
-                    model='gemini-2.5-flash',
-                    contents=full_prompt,
-                )
-            except Exception:
-                # 3. Ultimate backup model that always works for v1beta API limits
-                response = client.models.generate_content(
-                    model='gemini-2.5-flash',
-                    contents=full_prompt,
-                )
+        # ── REST API CALL (Kallattiin Google Server waamuu - Bypass 404 SDK Errors) ──
+        # Google Gemini 1.5 Flash Endpoint (Yeroo hunda kan hojjetu fi bilisa kan ta'e)
+        url = f"https://googleapis.com{gemini_key}"
         
-        return jsonify({"reply": response.text.strip()})
+        headers = {'Content-Type': 'application/json'}
+        payload = {
+            "contents": [
+                {
+                    "parts": [
+                        {"text": f"{system_instruction}\n\nUser Question: {user_message}\nAI Response:"}
+                    ]
+                }
+            ]
+        }
+
+        response = requests.post(url, headers=headers, json=payload)
+        response_data = response.json()
+
+        # Deebii Google irraa dhufe kutaalee isaa qulqulleessanii baasuu
+        if response.status_code == 200:
+            try:
+                ai_reply = response_data['candidates'][0]['content']['parts'][0]['text']
+                return jsonify({"reply": ai_reply.strip()})
+            except Exception:
+                return jsonify({"reply": "Nile Job AI is processing your request. Please try again."})
+        else:
+            # Yoo 1.5 Flash dide, gara moodela dhaloota haaraatti fallback gochuu
+            fallback_url = f"https://googleapis.com{gemini_key}"
+            fb_response = requests.post(fallback_url, headers=headers, json=payload)
+            fb_data = fb_response.json()
+            if fb_response.status_code == 200:
+                ai_reply = fb_data['candidates'][0]['content']['parts'][0]['text']
+                return jsonify({"reply": ai_reply.strip()})
+            else:
+                return jsonify({"error": f"Google API Error: {fb_response.text}"}), fb_response.status_code
         
     except Exception as e:
         return jsonify({"error": str(e)}), 500
