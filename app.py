@@ -48,7 +48,7 @@ def chat_assistant():
 
         # Call the latest Google Gemini 2.5 Flash Model
         response = client.models.generate_content(
-            model='gemini-2.5-flash',
+            model='gemini-1.5-flash',
             contents=full_prompt,
         )
         
