@@ -49,8 +49,12 @@ def chat_assistant():
             "Keep your responses professional, helpful, and highly motivational. Speak fluently in Afaan Oromoo, Amharic, or English based on the user's language."
         )
 
-        # ── REST API CALL (FIXED EXACT CLEAN GOOGLE HOSTNAME) ──
-        url = f"https://googleapis.com{gemini_key}"
+        # ── REST API CALL WITH CLEAN SEPARATED QUERY PARAMS ──
+        # Base URL qulqulluu qofa asitti kaa'uu (Prevents hostname corruption)
+        url = "https://googleapis.com"
+        
+        # Key sana qulqulleessanii bifa params kanaan dabarsuu (Bypasses URL string bugs completely)
+        query_params = {'key': gemini_key.strip()}
         
         headers = {'Content-Type': 'application/json'}
         payload = {
@@ -63,7 +67,8 @@ def chat_assistant():
             ]
         }
 
-        response = requests.post(url, headers=headers, json=payload)
+        # Params parameters requests keessatti kaachuu
+        response = requests.post(url, headers=headers, json=payload, params=query_params)
         response_data = response.json()
 
         if response.status_code == 200:
